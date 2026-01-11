@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "minikeyvalue.hpp"
+#include "../include/MiniKeyValue.hpp"
 #include <memory>
 
 struct MiniKeyValueTests : public testing::Test{

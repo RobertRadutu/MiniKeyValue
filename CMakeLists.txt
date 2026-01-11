@@ -18,8 +18,8 @@ enable_testing()
 
 add_executable(
   minikeyvalue
-  minikeyvalue.cpp
-  MiniKeyValueTests.cpp
+  src/MiniKeyValue.cpp
+  tests/MiniKeyValueTests.cpp
 )
 target_link_libraries(
   minikeyvalue

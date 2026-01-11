@@ -1,4 +1,4 @@
-#include "minikeyvalue.hpp"
+#include "../include/MiniKeyValue.hpp"
 
 std::vector<uint8_t> MiniKeyValue::Get(const std::string& key) const{
     std::lock_guard<std::mutex> lock(mtx);
@@ -10,13 +10,17 @@ std::vector<uint8_t> MiniKeyValue::Get(const std::string& key) const{
 void MiniKeyValue::Set(const std::string& key, const std::vector<uint8_t>& value){
     std::lock_guard<std::mutex> lock{mtx};
     store[key] = value;
-    storage_->write(key, value, false);
+    
+    LogEntry entry{key, value, false};
+    storage_->write(entry);
 }
 
 void MiniKeyValue::Delete(const std::string& key){
     std::lock_guard<std::mutex> lock{mtx};
     store.erase(key);
-    storage_->write(key, {}, true);
+
+    LogEntry entry{key, {}, true};
+    storage_->write(entry);
 }
 
 // std::vector<std::vector<uint8_t>> MiniKeyValue::GetAllData() const{
