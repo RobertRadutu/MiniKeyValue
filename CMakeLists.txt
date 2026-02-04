@@ -16,9 +16,13 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+set(SOURCES
+    src/MiniKeyValue.cpp
+    src/FileStorage.cpp)
+
 add_executable(
   minikeyvalue
-  src/MiniKeyValue.cpp
+  ${SOURCES}
   tests/MiniKeyValueTests.cpp
 )
 target_link_libraries(
