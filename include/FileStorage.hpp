@@ -1,9 +1,9 @@
-#ifndef __FILE_STORAGE_HPP
-#define __FILE_STORAGE_HPP
+#ifndef MINIKVALUE_FILE_STORAGE_HPP
+#define MINIKVALUE_FILE_STORAGE_HPP
 
 #include "IStorage.hpp"
-#include <mutex>
 #include <string>
+#include <mutex>
 
 class FileStorage : public IStorage {
 public:
@@ -11,9 +11,10 @@ public:
     void clear() override;
     void write(const LogEntry& entry) override;
     void replay(std::function<void(const LogEntry&)> callback) const override;
+
 private:
     std::string path_;
     mutable std::mutex mutex_;
 };
 
-#endif //__FILE_STORAGE_HPP
+#endif // MINIKVALUE_FILE_STORAGE_HPP

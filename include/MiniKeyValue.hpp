@@ -1,66 +1,43 @@
-#ifndef __MINIKEYVALUE_HPP
-#define __MINIKEYVALUE_HPP
+#ifndef MINIKVALUE_MINIKEYVALUE_HPP
+#define MINIKVALUE_MINIKEYVALUE_HPP
 
-#include <unordered_map>
-#include <string>
-#include <vector>
 #include <mutex>
-#include <fstream>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <memory>
 
-#include "IStorage.hpp"
-#include "FileStorage.hpp"
+class IStorage;
 
-class MiniKeyValue{
+class MiniKeyValue final {
+    struct FactoryAccess {
+        friend class MiniKeyValue;
+    private:
+        FactoryAccess() = default;
+    };
+
 public:
-    explicit MiniKeyValue(std::unique_ptr<IStorage> storage) : storage_(std::move(storage)) {}
-    static std::shared_ptr<MiniKeyValue> createEmpty(const std::string& path) {
-        auto storage = std::make_unique<FileStorage>(path);
-        storage->clear();
-        return std::make_shared<MiniKeyValue>(std::move(storage));
-    }
+    explicit MiniKeyValue(std::unique_ptr<IStorage> storage, FactoryAccess);
+    static std::shared_ptr<MiniKeyValue> createEmpty(const std::string& path);
+    static std::shared_ptr<MiniKeyValue> createMiniKeyValue(const std::string& path);
+    std::optional<std::vector<uint8_t>> Get(const std::string& key) const;
+    void Set(const std::string& key, const std::vector<uint8_t>& value);
+    void Delete(const std::string& key);
+    std::unordered_map<std::string, std::vector<uint8_t>> GetAllKeyValues() const;
 
-    static std::shared_ptr<MiniKeyValue> createMiniKeyValue(const std::string& path) {
-        auto storage = std::make_unique<FileStorage>(path);
-        auto mkv =  std::make_shared<MiniKeyValue>(std::move(storage));
-        mkv->readFile();
-        return mkv;
-    }
+    ~MiniKeyValue();
+    MiniKeyValue(const MiniKeyValue&) = delete;
+    MiniKeyValue& operator=(const MiniKeyValue&) = delete;
+    MiniKeyValue(MiniKeyValue&&) = delete;
+    MiniKeyValue& operator=(MiniKeyValue&&) = delete;
 
-    std::vector<uint8_t> Get(const std::string&) const;
-    void Set(const std::string&, const std::vector<uint8_t>&);
-    void Delete(const std::string&);
-    void readFile(){
-        std::lock_guard<std::mutex> lock(mtx);
-        store.clear();
-        storage_->replay([this](const LogEntry& entry){
-            if(!entry.isDelete) {
-                store[entry.key] = entry.value;
-            }
-            else {
-                store.erase(entry.key);
-            }
-        });
-    }
-
-    std::unordered_map<std::string, std::vector<uint8_t>> GetAllKeyValues() const {
-        std::lock_guard<std::mutex> lock(mtx);
-        return store;
-    }
-    
 private:
-    bool isKey(const std::string&) const;
-    std::vector<std::string> getAllKeys() const;
-    void resetFile();
+    void readFile();
 
     std::unique_ptr<IStorage> storage_;
-    std::unordered_map<std::string, std::vector<uint8_t>> store;
-    mutable std::mutex mtx;
-    std::string logFile;
+    std::unordered_map<std::string, std::vector<uint8_t>> store_;
+    mutable std::mutex mtx_;
 };
 
-#endif //__MINIKEYVALUE_HPP
-
-/**
- * [Storage] -> bytes -> LogEntry
- * [Engine] -> LogEntry -> state
- */
+#endif // MINIKVALUE_MINIKEYVALUE_HPP
