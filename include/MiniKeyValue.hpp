@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -40,7 +41,7 @@ private:
 
     std::unique_ptr<IStorage> storage_;
     std::unordered_map<std::string, std::vector<uint8_t>> store_;
-    mutable std::mutex mtx_;
+    mutable std::shared_mutex mtx_;
 };
 
 #endif // MINIKVALUE_MINIKEYVALUE_HPP

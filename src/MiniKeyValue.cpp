@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 
 namespace {
 
@@ -37,7 +38,7 @@ std::shared_ptr<MiniKeyValue> MiniKeyValue::createMiniKeyValue(const std::string
 }
 
 void MiniKeyValue::readFile() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::unique_lock<std::shared_mutex> lock(mtx_);
     store_.clear();
     storage_->replay([this](const LogEntry& entry) {
         if (entry.isDelete) {
@@ -49,7 +50,7 @@ void MiniKeyValue::readFile() {
 }
 
 std::optional<std::vector<uint8_t>> MiniKeyValue::Get(const std::string& key) const {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::shared_lock<std::shared_mutex> lock(mtx_);
     auto it = store_.find(key);
     if (it != store_.end()) {
         return it->second;
@@ -73,20 +74,20 @@ void MiniKeyValue::maybeCompactAfterMutation() {
 }
 
 void MiniKeyValue::Set(const std::string& key, const std::vector<uint8_t>& value) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::unique_lock<std::shared_mutex> lock(mtx_);
     store_[key] = value;
     storage_->write({key, value, false});
     maybeCompactAfterMutation();
 }
 
 void MiniKeyValue::Delete(const std::string& key) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::unique_lock<std::shared_mutex> lock(mtx_);
     store_.erase(key);
     storage_->write({key, {}, true});
     maybeCompactAfterMutation();
 }
 
 std::unordered_map<std::string, std::vector<uint8_t>> MiniKeyValue::GetAllKeyValues() const {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::shared_lock<std::shared_mutex> lock(mtx_);
     return store_;
 }
