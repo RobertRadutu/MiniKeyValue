@@ -1,7 +1,6 @@
 #ifndef MINIKVALUE_MINIKEYVALUE_HPP
 #define MINIKVALUE_MINIKEYVALUE_HPP
 
-#include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <string>
@@ -23,6 +22,7 @@ public:
 
     static std::shared_ptr<MiniKeyValue> createEmpty(const std::string& path);
     static std::shared_ptr<MiniKeyValue> createMiniKeyValue(const std::string& path);
+    static std::shared_ptr<MiniKeyValue> createFromStorage(std::unique_ptr<IStorage> storage);
 
     std::optional<std::vector<uint8_t>> Get(const std::string& key) const;
     void Set(const std::string& key, const std::vector<uint8_t>& value);

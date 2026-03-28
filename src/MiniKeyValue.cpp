@@ -37,6 +37,11 @@ std::shared_ptr<MiniKeyValue> MiniKeyValue::createMiniKeyValue(const std::string
     return mkv;
 }
 
+std::shared_ptr<MiniKeyValue> MiniKeyValue::createFromStorage(std::unique_ptr<IStorage> storage) {
+    storage->clear();
+    return std::make_shared<MiniKeyValue>(std::move(storage), FactoryAccess{});
+}
+
 void MiniKeyValue::readFile() {
     std::unique_lock<std::shared_mutex> lock(mtx_);
     store_.clear();

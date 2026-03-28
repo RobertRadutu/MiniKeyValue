@@ -20,14 +20,22 @@ set(SOURCES
     src/FileStorage.cpp
 )
 
-add_executable(minikeyvalue_tests
+# Unit tests — InMemoryStorage / FailingStorage, no filesystem IO
+add_executable(unit_tests
     ${SOURCES}
-    tests/MiniKeyValueTests.cpp
+    tests/MiniKeyValueUnitTests.cpp
 )
+target_include_directories(unit_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
 
-target_include_directories(minikeyvalue_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-target_link_libraries(minikeyvalue_tests PRIVATE GTest::gtest_main)
+# Integration tests — real FileStorage on disk
+add_executable(integration_tests
+    ${SOURCES}
+    tests/MiniKeyValueIntegrationTests.cpp
+)
+target_include_directories(integration_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(integration_tests PRIVATE GTest::gtest_main)
 
 include(GoogleTest)
-gtest_discover_tests(minikeyvalue_tests)
+gtest_discover_tests(unit_tests)
+gtest_discover_tests(integration_tests)
