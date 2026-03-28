@@ -19,8 +19,10 @@ class MiniKeyValue final {
 
 public:
     explicit MiniKeyValue(std::unique_ptr<IStorage> storage, FactoryAccess);
+
     static std::shared_ptr<MiniKeyValue> createEmpty(const std::string& path);
     static std::shared_ptr<MiniKeyValue> createMiniKeyValue(const std::string& path);
+
     std::optional<std::vector<uint8_t>> Get(const std::string& key) const;
     void Set(const std::string& key, const std::vector<uint8_t>& value);
     void Delete(const std::string& key);
@@ -34,6 +36,7 @@ public:
 
 private:
     void readFile();
+    void maybeCompactAfterMutation();
 
     std::unique_ptr<IStorage> storage_;
     std::unordered_map<std::string, std::vector<uint8_t>> store_;

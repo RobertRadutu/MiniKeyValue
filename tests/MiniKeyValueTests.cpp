@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "../include/MiniKeyValue.hpp"
+#include "../include/FileStorage.hpp"
 #include <memory>
+#include <string>
 
 struct MiniKeyValueTests : public testing::Test {
     void SetUp() override {
@@ -60,4 +62,35 @@ TEST_F(MiniKeyValueTests, emptyStoreReturnsEmptyMap) {
 
 TEST_F(MiniKeyValueTests, deleteNonExistentKeyDoesNotThrow) {
     EXPECT_NO_THROW(mkv_->Delete("nonexistent"));
+}
+
+TEST_F(MiniKeyValueTests, manyOverwritesSurviveReopen) {
+    for (int i = 0; i < 40; ++i) {
+        mkv_->Set("k", {static_cast<uint8_t>(i % 256)});
+    }
+    const auto map = mkv_->GetAllKeyValues();
+    TearDown();
+    auto mkv2 = MiniKeyValue::createMiniKeyValue(logFile_);
+    EXPECT_EQ(mkv2->GetAllKeyValues(), map);
+}
+
+TEST_F(MiniKeyValueTests, deleteAllKeysLeavesEmptyLog) {
+    mkv_->Set("x", {1});
+    mkv_->Delete("x");
+    EXPECT_EQ(FileStorage(logFile_).sizeBytes(), 0u);
+}
+
+TEST_F(MiniKeyValueTests, manyKeysThenDeletesRemainConsistentAfterReopen) {
+    for (int i = 0; i < 20; ++i) {
+        mkv_->Set("k" + std::to_string(i), {static_cast<uint8_t>(i)});
+    }
+    for (int i = 0; i < 19; ++i) {
+        mkv_->Delete("k" + std::to_string(i));
+    }
+    const auto map = mkv_->GetAllKeyValues();
+    TearDown();
+    auto mkv2 = MiniKeyValue::createMiniKeyValue(logFile_);
+    EXPECT_EQ(mkv2->GetAllKeyValues(), map);
+    ASSERT_TRUE(mkv2->Get("k19").has_value());
+    EXPECT_EQ(mkv2->Get("k19")->front(), 19);
 }

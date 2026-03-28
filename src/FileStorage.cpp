@@ -1,22 +1,14 @@
 #include "../include/FileStorage.hpp"
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
-void FileStorage::clear() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::ofstream ofs(path_, std::ios::binary | std::ios::trunc);
-    if (!ofs.is_open()) {
-        throw std::runtime_error("FileStorage: failed to open file for clearing: " + path_);
-    }
-}
+namespace {
 
-void FileStorage::write(const LogEntry& entry) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
+void serializeEntryToBuffer(const LogEntry& entry, std::vector<char>& buffer) {
     const size_t estimated_size = sizeof(uint8_t) + sizeof(uint64_t) + entry.key.size()
         + (entry.isDelete ? 0 : sizeof(uint64_t) + entry.value.size());
-
-    std::vector<char> buffer;
+    buffer.clear();
     buffer.reserve(estimated_size);
 
     uint8_t flag = entry.isDelete ? 1 : 0;
@@ -34,20 +26,34 @@ void FileStorage::write(const LogEntry& entry) {
         buffer.insert(buffer.end(), reinterpret_cast<const char*>(entry.value.data()),
                       reinterpret_cast<const char*>(entry.value.data() + vsize));
     }
+}
 
-    std::ofstream ofs(path_, std::ios::binary | std::ios::app);
+void writeBufferToAppendFile(const std::string& path, const std::vector<char>& buffer) {
+    std::ofstream ofs(path, std::ios::binary | std::ios::app);
     if (!ofs.is_open()) {
-        throw std::runtime_error("FileStorage: failed to open file for writing: " + path_);
+        throw std::runtime_error("FileStorage: failed to open file for writing: " + path);
     }
     ofs.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    ofs.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    ofs.flush();
+}
 
-    try {
-        ofs.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        ofs.flush();
-    } catch (const std::ios_base::failure& e) {
-        throw std::runtime_error(
-            "FileStorage: write failed for entry with key: " + entry.key + " (" + e.what() + ").");
+} // namespace
+
+void FileStorage::clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::ofstream ofs(path_, std::ios::binary | std::ios::trunc);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("FileStorage: failed to open file for clearing: " + path_);
     }
+}
+
+void FileStorage::write(const LogEntry& entry) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::vector<char> buffer;
+    serializeEntryToBuffer(entry, buffer);
+    writeBufferToAppendFile(path_, buffer);
 }
 
 void FileStorage::replay(std::function<void(const LogEntry&)> callback) const {
@@ -84,5 +90,51 @@ void FileStorage::replay(std::function<void(const LogEntry&)> callback) const {
         if (!ifs.eof()) {
             throw std::runtime_error("FileStorage: replay failed for file: " + path_);
         }
+    }
+}
+
+std::uint64_t FileStorage::sizeBytes() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::error_code ec;
+    const auto sz = std::filesystem::file_size(path_, ec);
+    if (ec) {
+        return 0;
+    }
+    return static_cast<std::uint64_t>(sz);
+}
+
+void FileStorage::compactFromSnapshot(const std::unordered_map<std::string, std::vector<uint8_t>>& live) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    const std::string tmp_path = path_ + ".compact.tmp";
+    std::error_code rm_ec;
+    std::filesystem::remove(tmp_path, rm_ec);
+
+    {
+        std::ofstream ofs(tmp_path, std::ios::binary | std::ios::trunc);
+        if (!ofs.is_open()) {
+            throw std::runtime_error("FileStorage: failed to open temp file for compaction: " + tmp_path);
+        }
+        ofs.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+
+        std::vector<char> buffer;
+        for (const auto& kv : live) {
+            LogEntry e{kv.first, kv.second, false};
+            serializeEntryToBuffer(e, buffer);
+            ofs.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        }
+        ofs.flush();
+    }
+
+    /**
+        This is not atomic in the sense that is implemented with a single CPU instruction,
+        but the fact that other threads will either see the old file or new file at path_,
+        after the following code
+    */
+    std::error_code rename_ec;
+    std::filesystem::rename(tmp_path, path_, rename_ec);
+    if (rename_ec) {
+        std::filesystem::remove(tmp_path, rm_ec);
+        throw std::runtime_error("FileStorage: atomic rename after compaction failed: " + path_);
     }
 }
