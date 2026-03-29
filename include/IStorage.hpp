@@ -13,6 +13,15 @@ public:
     virtual ~IStorage() = default;
     virtual void clear() = 0;
     virtual void write(const LogEntry& e) = 0;
+
+    /// Write a batch of entries as a single atomic I/O operation.
+    /// Default: falls back to individual writes (no atomicity guarantee).
+    virtual void write(const std::vector<LogEntry>& entries) {
+        for (const auto& e : entries) {
+            write(e);
+        }
+    }
+
     virtual void replay(std::function<void(const LogEntry&)> callback) const = 0;
 
     /// Current on-disk size of the log file (bytes). Used for compaction heuristics.

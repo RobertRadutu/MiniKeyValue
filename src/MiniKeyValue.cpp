@@ -2,6 +2,7 @@
 #include "../include/FileStorage.hpp"
 #include <cstdint>
 #include <memory>
+#include <minikvalue/include/LogEntry.hpp>
 #include <mutex>
 #include <shared_mutex>
 
@@ -95,4 +96,19 @@ void MiniKeyValue::Delete(const std::string& key) {
 std::unordered_map<std::string, std::vector<uint8_t>> MiniKeyValue::GetAllKeyValues() const {
     std::shared_lock<std::shared_mutex> lock(mtx_);
     return store_;
+}
+
+void MiniKeyValue::BatchWrite(const std::vector<LogEntry>& entries) {
+    std::unique_lock<std::shared_mutex> lock(mtx_);
+
+    for (const auto& entry : entries) {
+        if (entry.isDelete) {
+            store_.erase(entry.key);
+        } else {
+            store_[entry.key] = entry.value;
+        }
+    }
+
+    storage_->write(entries);
+    maybeCompactAfterMutation();
 }

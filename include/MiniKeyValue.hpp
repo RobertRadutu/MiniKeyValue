@@ -1,6 +1,7 @@
 #ifndef MINIKVALUE_MINIKEYVALUE_HPP
 #define MINIKVALUE_MINIKEYVALUE_HPP
 
+#include "LogEntry.hpp"
 #include <optional>
 #include <shared_mutex>
 #include <string>
@@ -28,6 +29,8 @@ public:
     void Set(const std::string& key, const std::vector<uint8_t>& value);
     void Delete(const std::string& key);
     std::unordered_map<std::string, std::vector<uint8_t>> GetAllKeyValues() const;
+
+    void BatchWrite(const std::vector<LogEntry>& entries);
 
     ~MiniKeyValue();
     MiniKeyValue(const MiniKeyValue&) = delete;

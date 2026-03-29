@@ -1,16 +1,12 @@
 #include "../include/FileStorage.hpp"
 #include <filesystem>
 #include <fstream>
+#include <minikvalue/include/LogEntry.hpp>
 #include <stdexcept>
 
 namespace {
 
-void serializeEntryToBuffer(const LogEntry& entry, std::vector<char>& buffer) {
-    const size_t estimated_size = sizeof(uint8_t) + sizeof(uint64_t) + entry.key.size()
-        + (entry.isDelete ? 0 : sizeof(uint64_t) + entry.value.size());
-    buffer.clear();
-    buffer.reserve(estimated_size);
-
+void appendEntryToBuffer(const LogEntry& entry, std::vector<char>& buffer) {
     uint8_t flag = entry.isDelete ? 1 : 0;
     buffer.push_back(static_cast<char>(flag));
 
@@ -26,6 +22,14 @@ void serializeEntryToBuffer(const LogEntry& entry, std::vector<char>& buffer) {
         buffer.insert(buffer.end(), reinterpret_cast<const char*>(entry.value.data()),
                       reinterpret_cast<const char*>(entry.value.data() + vsize));
     }
+}
+
+size_t estimateSerializedBytes(const LogEntry& entry) {
+    size_t n = sizeof(uint8_t) + sizeof(uint64_t) + entry.key.size();
+    if (!entry.isDelete) {
+        n += sizeof(uint64_t) + entry.value.size();
+    }
+    return n;
 }
 
 void writeBufferToAppendFile(const std::string& path, const std::vector<char>& buffer) {
@@ -52,7 +56,25 @@ void FileStorage::write(const LogEntry& entry) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::vector<char> buffer;
-    serializeEntryToBuffer(entry, buffer);
+    buffer.reserve(estimateSerializedBytes(entry));
+    appendEntryToBuffer(entry, buffer);
+    writeBufferToAppendFile(path_, buffer);
+}
+
+void FileStorage::write(const std::vector<LogEntry>& entries) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    size_t total = 0;
+    for (const auto& entry : entries) {
+        total += estimateSerializedBytes(entry);
+    }
+
+    std::vector<char> buffer;
+    buffer.reserve(total);
+    for (const auto& entry : entries) {
+        appendEntryToBuffer(entry, buffer);
+    }
+
     writeBufferToAppendFile(path_, buffer);
 }
 
@@ -120,7 +142,8 @@ void FileStorage::compactFromSnapshot(const std::unordered_map<std::string, std:
         std::vector<char> buffer;
         for (const auto& kv : live) {
             LogEntry e{kv.first, kv.second, false};
-            serializeEntryToBuffer(e, buffer);
+            buffer.clear();
+            appendEntryToBuffer(e, buffer);
             ofs.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
         }
         ofs.flush();
