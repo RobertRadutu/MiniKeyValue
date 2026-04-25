@@ -35,8 +35,8 @@ public:
     ~MiniKeyValue();
     MiniKeyValue(const MiniKeyValue&) = delete;
     MiniKeyValue& operator=(const MiniKeyValue&) = delete;
-    MiniKeyValue(MiniKeyValue&&) = delete;
-    MiniKeyValue& operator=(MiniKeyValue&&) = delete;
+    MiniKeyValue(MiniKeyValue&&) noexcept = delete;
+    MiniKeyValue& operator=(MiniKeyValue&&) noexcept = delete;
 
 private:
     void readFile();
