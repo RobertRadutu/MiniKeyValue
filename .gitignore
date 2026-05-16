@@ -18,3 +18,7 @@ compile_commands.json
 *.dylib
 *.a
 *.bin
+*.md
+.cache
+.DS_Store
+Testing/

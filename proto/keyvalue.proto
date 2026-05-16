@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package minikvalue.v1;
+
+// Key/value RPC surface for one shard. Each server process owns shard_index in
+// [0, shard_count) and rejects operations for keys that do not map to it.
+
+service KeyValueService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc BatchWrite(BatchWriteRequest) returns (BatchWriteResponse);
+  // All key/value pairs stored on this shard (local store only).
+  rpc Export(ExportRequest) returns (stream KeyValuePair);
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bool found = 1;
+  bytes value = 2;
+}
+
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+}
+
+message SetResponse {}
+
+message DeleteRequest {
+  string key = 1;
+}
+
+message DeleteResponse {}
+
+message LogEntryMsg {
+  string key = 1;
+  bytes value = 2;
+  bool is_delete = 3;
+}
+
+message BatchWriteRequest {
+  repeated LogEntryMsg entries = 1;
+}
+
+message BatchWriteResponse {}
+
+message ExportRequest {}
+
+message KeyValuePair {
+  string key = 1;
+  bytes value = 2;
+}
